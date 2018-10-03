@@ -46,8 +46,6 @@ def drop_low_var_dummies(pivoted_df):
             if pivoted_df[feature].sum() > 2 and\
                 pivoted_df[feature].sum() < (len(pivoted_df) - 2):
                 included_columns.append(feature)
-            else:
-                print(feature, "column sum", pivoted_df[feature].sum(), len(pivoted_df))
 
     return pivoted_df[included_columns]
 
@@ -57,7 +55,6 @@ def fill_dummy_values(pivoted_df):
             pivoted_df[feature] =\
                 pivoted_df.apply(lambda row: fill_non_null(row[feature]),
                                  axis = 1)
-    print(pivoted_df)
     return drop_low_var_dummies(pivoted_df)
 
 def make_dummies(categorical_df):
