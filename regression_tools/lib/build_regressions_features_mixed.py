@@ -35,7 +35,7 @@ def rename_categorical(question_name, response):
     return q_name
 
 def fill_non_null(cell_value):
-    if cell_value is not None:
+    if cell_value != -1:
         return 1
     return 0
 
@@ -46,6 +46,9 @@ def drop_low_var_dummies(pivoted_df):
             if pivoted_df[feature].sum() > 2 and\
                 pivoted_df[feature].sum() < (len(pivoted_df) - 2):
                 included_columns.append(feature)
+            else:
+                print(feature, "column sum", pivoted_df[feature].sum(), len(pivoted_df))
+
     return pivoted_df[included_columns]
 
 def fill_dummy_values(pivoted_df):
@@ -54,6 +57,7 @@ def fill_dummy_values(pivoted_df):
             pivoted_df[feature] =\
                 pivoted_df.apply(lambda row: fill_non_null(row[feature]),
                                  axis = 1)
+    print(pivoted_df)
     return drop_low_var_dummies(pivoted_df)
 
 def make_dummies(categorical_df):
@@ -63,12 +67,12 @@ def make_dummies(categorical_df):
                                                              ),
                                axis = 1
                                )
+
     categorical_df = categorical_df.drop_duplicates(['snippet_id','question_name'])
 
     pivoted = categorical_df.pivot(index='snippet_id',
                         columns='question_name',
-                        values='response_clean').reset_index()
-
+                        values='response_clean').reset_index().fillna(-1)
     return fill_dummy_values(pivoted)
 
 

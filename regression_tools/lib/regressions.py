@@ -44,7 +44,7 @@ class ClassificationModel():
 
     def trained_pipeline(self):
         pca = PCA()
-        log_reg = linear_model.LogisticRegressionCV(class_weight='balanced')
+        log_reg = linear_model.LogisticRegressionCV(class_weight='balanced', cv=5)
         pipe = Pipeline(steps=[('pca', pca), ('classifier', log_reg)])
         pipe.fit(self.X_train, self.y_train)
         return pipe
@@ -154,7 +154,7 @@ class ClassificationModel():
 
     def covariance_matrix(self):
 
-        X = self.X_test[self.independent_variables].as_matrix()
+        X = self.X_test[self.independent_variables].values
         X_T = X.transpose()
         cf_array = self.trained_model.steps[1][1].coef_
         w_diag = np.array([np.exp(np.dot(cf_array, x_i))[0]/
@@ -302,7 +302,7 @@ class RegressionModel():
     def covariance_matrix(self):
         X_df = self.X_test
         X_df['ones'] = 1
-        X = X_df[['ones'] + self.independent_variables].as_matrix()
+        X = X_df[['ones'] + self.independent_variables].values()
         X_T = X.transpose()
         mse = mean_squared_error(self.y_test, self.y_pred)
         cov = mse *np.linalg.inv(np.dot(X_T,X))
@@ -498,7 +498,7 @@ class MixedClassificationModel():
 
     def covariance_matrix(self):
 
-        X = self.X_test[self.independent_variables].as_matrix()
+        X = self.X_test[self.independent_variables].values
         X_T = X.transpose()
         cf_array = self.trained_model.steps[0][1].coef_
         w_diag = np.array([np.exp(np.dot(cf_array, x_i))[0]/
