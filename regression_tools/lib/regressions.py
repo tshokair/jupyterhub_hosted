@@ -29,11 +29,10 @@ class ClassificationModel():
         self.features = feature_object.encoded_features
         self.dependent_variable = feature_object.dependent_variable
         self.independent_variables = feature_object.independent_variables
-        self.X_train = feature_object.training_features()\
-         [feature_object.training_features()['outcome'].isin([0,1])]\
-         [self.independent_variables]
-        self.y_train = feature_object.training_features()\
-         [feature_object.training_features()['outcome'].isin([0,1])]['outcome']
+        self.training_features = feature_object.training_features()
+        self.balanced = self.balance_training()
+        self.X_train = self.balanced[self.independent_variables]
+        self.y_train = self.balanced['outcome']
         self.X_test = feature_object.standardized_features()[self.independent_variables]
         self.y_test = feature_object.standardized_features()['outcome']
         self.question_choices = feature_object.question_choices()
@@ -41,6 +40,26 @@ class ClassificationModel():
         self.question_stats = feature_object.independent_variable_stats()
         self.trained_model = self.trained_pipeline()
         self.y_pred = self.prediction()
+    
+    def balance_training(self):
+        
+        pos_samples = len(self.training_features()\
+         [self.training_features()['outcome'] == 1])
+        
+        neg_samples = len(self.training_features()\
+         [self.training_features()['outcome'] == 0])
+        
+        sample_size = min(pos_samples, neg_samples)
+        balanced =\
+            pd.concat([self.training_features()
+                        [self.training_features()['outcome'] == 0]
+                        .sample(n=sample_size),
+                       self.training_features()
+                        [self.training_features()['outcome'] == 1]
+                        .sample(n=sample_size)
+                      ])
+        return balanced
+        
 
     def trained_pipeline(self):
         pca = PCA()
@@ -347,11 +366,10 @@ class MixedClassificationModel():
         self.continuous_independent_variables  = feature_object.continuous_independent_variables
         self.dummies = feature_object.dummies
         self.standardized_features = feature_object.standardized_features()
-        self.X_train = self.standardized_features\
-         [self.standardized_features['outcome'].isin([0,1])]\
-         [self.independent_variables]
-        self.y_train = self.standardized_features\
-         [self.standardized_features['outcome'].isin([0,1])]['outcome']
+        self.training_features = feature_object.training_features()
+        self.balanced = self.balance_training()
+        self.X_train = self.balanced[self.independent_variables]
+        self.y_train = self.balanced['outcome']
         self.X_test = self.standardized_features[self.independent_variables]
         self.y_test = self.standardized_features['outcome']
         self.question_choices = feature_object.question_choices()
@@ -360,9 +378,29 @@ class MixedClassificationModel():
         self.trained_model = self.trained_pipeline()
         self.y_pred = self.prediction()
 
+    def balance_training(self):
+        
+        pos_samples = len(self.training_features\
+         [self.training_features['outcome'] == 1])
+        
+        neg_samples = len(self.training_features\
+         [self.training_features['outcome'] == 0])
+        
+        sample_size = min(pos_samples, neg_samples)
+        balanced =\
+            pd.concat([self.training_features
+                        [self.training_features['outcome'] == 0]
+                        .sample(n=sample_size),
+                       self.training_features
+                        [self.training_features['outcome'] == 1]
+                        .sample(n=sample_size)
+                      ])
+        return balanced
+        
+
     def trained_pipeline(self):
-        #pca = PCA()
-        log_reg = linear_model.LogisticRegressionCV(class_weight='balanced')
+        pca = PCA()
+        log_reg = linear_model.LogisticRegressionCV(class_weight='balanced', cv=5)
         pipe = Pipeline(steps=[('classifier', log_reg)])
         pipe.fit(self.X_train, self.y_train)
         return pipe

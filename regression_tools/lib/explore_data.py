@@ -37,7 +37,7 @@ class ExploratoryAnalysis():
     def correlation_matrix_plots(self):
         size = 2*len(self.independent_variables)
         matrix =\
-            pd.scatter_matrix(self.standardized_features[self.independent_variables],
+            pd.plotting.scatter_matrix(self.standardized_features[self.independent_variables],
                               figsize=(size, size))
         return matrix
 
@@ -54,7 +54,7 @@ class ExploratoryAnalysis():
 
         lsa_array =\
             self.lsa.transform((self.standardized_features[
-                    self.independent_variables]))
+                    self.independent_variables].dropna()))
         lsa_data = pd.DataFrame({'svd1':lsa_array[:,0], 'svd2':lsa_array[:,1]})
         lsa_data[self.dependent_variable] =\
             self.standardized_features[self.dependent_variable]
@@ -67,7 +67,7 @@ class ExploratoryAnalysis():
     def plot_outcome_clusters(self):
         lsa_array =\
             self.lsa.transform((self.standardized_features[
-                    self.independent_variables]))
+                    self.independent_variables].dropna()))
         lsa_data = pd.DataFrame({'svd1':lsa_array[:,0], 'svd2':lsa_array[:,1]})
         lsa_data['outcome'] =\
             self.standardized_features['outcome']
