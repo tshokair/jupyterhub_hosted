@@ -495,8 +495,9 @@ class MixedClassificationModel():
                     x0 = 0
                     A = 1
 
-        title = "p(Positive|x) ="+str(round(A,2))+"/(1+exp(-"+str(round(k,2))+\
-                                       "(x +"+ str(round(x0,2))+")))"
+        title = (independent_variable + "p(Positive|x) ="+str(round(A,2))+
+            "/(1+exp(-"+str(round(k,2))+ "(x +"+ str(round(x0,2))+")))"
+        )
         ax.plot(response_range, sigmoid_func(response_range, k, x0, A))
         #ax.set_xlabel('Varied '+indep_var)
         ax.set_ylabel('Prediction')

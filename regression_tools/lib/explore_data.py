@@ -20,7 +20,7 @@ class ExploratoryAnalysis():
         self.lsa = self._fit_lsa()
 
     def correlation_matrix(self):
-        return self.standardized_features[self.independent_variables].corr()
+        return self.standardized_features[self.independent_variables + ['outcome']].corr()
 
     def _fit_pca(self):
         pca = PCA()

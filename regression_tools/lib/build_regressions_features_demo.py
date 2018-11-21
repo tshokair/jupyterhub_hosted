@@ -1,4 +1,5 @@
 import datetime
+from lib.encoders import continuous_label_encoder
 import pandas as pd
 import numpy as np
 from sklearn import preprocessing
@@ -8,17 +9,23 @@ def rename_question(part_num, question_num):
     return str(part_num + 1) + "-" + str(question_num + 1)
 
 
+def convert_na_response(response):
+    if response.startswith('N/A'):
+        return -1
+    return response
+
 def convert_numerical_response(response):
     try:
         resp_clean = int(response[0:2])
-    except ValueError:
+    except (ValueError, TypeError) as e:
         resp_clean = response
     return resp_clean
 
 
 def convert_something_else_response(response, choices):
-
-    if str(response).lower().startswith("something else") or (
+    if response == -1:
+        return response
+    elif str(response).lower().startswith("something else") or (
         not any(
             [
                 str(response).lower().startswith(str(choice).lower().split()[0])
@@ -51,6 +58,15 @@ def fill_non_null(cell_value):
     if cell_value != -1:
         return 1
     return 0
+
+def get_age_today(birthday):
+    if birthday is not None:
+        today =  datetime.datetime.today()
+        try:
+            return (today - birthday).days/365.25
+        except TypeError:
+            return (today.date() - birthday).days/365.25
+    return -1   
 
 
 def drop_low_var_dummies(pivoted_df):
@@ -127,7 +143,7 @@ def get_question_choices(structure):
 class MixedFeatureData:
     def __init__(
         self,
-        json,
+        raw,
         dependent_variable,
         continuous_independent_variables,
         binary_independent_variables,
@@ -136,9 +152,10 @@ class MixedFeatureData:
         negative_outcomes,
         demo_independent_variables,
         tag_independent_variables,
+        scout_group_independent_variables,
         grouping,
     ):
-        self.raw = pd.read_json(json)
+        self.raw = raw
         self.dependent_variable = dependent_variable
         self.encoded_dependent_variable = dependent_variable + "_enc"
         self.binary_independent_variables = binary_independent_variables
@@ -148,6 +165,7 @@ class MixedFeatureData:
         self.demo_independent_variables = demo_independent_variables
         self.categorical_independent_variables = categorical_independent_variables
         self.tag_independent_variables = tag_independent_variables
+        self.scout_group_independent_variables = scout_group_independent_variables
         self.positive_outcomes = positive_outcomes
         self.negative_outcomes = negative_outcomes
         self.grouping = grouping
@@ -156,7 +174,8 @@ class MixedFeatureData:
         ] + self.continuous_independent_variables
         self.full_feature_df = self.full_features()
         self.independent_variables = [var for var in list(self.full_feature_df)
-                                      if var not in ['outcome',self.grouping]]
+                                      if var not in ['outcome',self.grouping,
+                                                     self.dependent_variable]]
         self.dummies = [
             col
             for col in list(self.full_feature_df)
@@ -169,6 +188,7 @@ class MixedFeatureData:
             self.continous_question_list +
             self.binary_independent_variables
         )
+        self.question_choice_dict = self.question_choices()
         self.encoded_features = self.encoded_features()
 
     def processed(self):
@@ -188,7 +208,10 @@ class MixedFeatureData:
             lambda row: row["answers"][0], axis=1
         )
         processed_df["response_clean"] = processed_df.apply(
-            lambda row: convert_numerical_response(row["answers"][0]), axis=1
+            lambda row: convert_na_response(row["answers"][0]), axis=1
+        )
+        processed_df["response_clean"] = processed_df.apply(
+            lambda row: convert_numerical_response(row["response_clean"]), axis=1
         )
         processed_df["response_clean"] = processed_df.apply(
             lambda row: convert_something_else_response(
@@ -200,12 +223,16 @@ class MixedFeatureData:
 
     def full_features(self):
         processed = self.processed()
+        processed_of_interest = (processed[
+            processed["question_name"].isin(
+                self.continuous_independent_variables + [self.dependent_variable]
+            )
+            ].drop_duplicates([self.grouping,'question_name'], keep='last')
+        )
+
         snippet_df_continuous = (
-            processed[
-                processed["question_name"].isin(
-                    self.continuous_independent_variables + [self.dependent_variable]
-                )
-            ].drop_duplicates([self.grouping,'question_name','response_clean'])
+            processed_of_interest
+            .drop_duplicates([self.grouping,'question_name'], keep='last')
             .pivot(index=self.grouping, columns="question_name", values="response_clean")
             .reset_index()
             .dropna()
@@ -213,9 +240,15 @@ class MixedFeatureData:
         other_variables = []
             
         if 'age' in self.demo_independent_variables:
-            this_year = datetime.date.today().year
+            today = datetime.datetime.today()
             age_df = processed[[self.grouping, 'birthday']].drop_duplicates()
-            age_df['age'] = age_df.apply(lambda row:  this_year - row['birthday'], axis=1)
+            age_df['birthday'] = age_df['birthday'].astype('datetime64[ns]')
+            age_df['age'] = (
+                age_df.apply(
+                    lambda row: get_age_today(row['birthday']), 
+                    axis=1
+                )
+            )
             snippet_df_continuous = ( 
                 pd.merge(snippet_df_continuous, 
                          age_df[[self.grouping,'age']],
@@ -282,6 +315,21 @@ class MixedFeatureData:
                 )
                 other_variables = other_variables + [var  for var in list(tag_dummy_df)
                                            if var != self.grouping]
+            if self.scout_group_independent_variables:
+                scout_group_df = (
+                    processed[processed['scout_group'].isin(self.scout_group_independent_variables)]
+                    [[self.grouping, 'scout_group']].drop_duplicates()
+                )
+                scout_group_dummy_df = pd.get_dummies(scout_group_df, 'scout_group')  
+                snippet_df_categorical = (
+                    pd.merge(snippet_df_categorical,
+                             scout_group_dummy_df, 
+                             on=self.grouping,
+                             how='left').fillna(0)
+                )
+                #print(scout_group_dummy_df)
+                other_variables = other_variables + [var  for var in list(scout_group_dummy_df)
+                                           if var != self.grouping]
 
             snippet_df_full = (pd.merge(
                 snippet_df_continuous,
@@ -300,7 +348,8 @@ class MixedFeatureData:
                     snippet_df_full = (
                         pd.merge(snippet_df_full,
                         demo_df_dummies[[self.grouping, demo]],
-                        on=self.grouping)
+                        on=self.grouping,
+                        how="left")
                     )
                     other_variables = (
                         other_variables + [var  for var in list(demo_df_dummies)
@@ -320,6 +369,20 @@ class MixedFeatureData:
                 )
                 other_variables = other_variables + [var  for var in list(tag_dummy_df)
                                            if var != self.grouping]
+            if self.scout_group_independent_variables:
+                scout_group_df = (
+                    processed[processed['scout_group'].isin(self.scout_group_independent_variables)]
+                    [[self.grouping, 'scout_group']].drop_duplicates()
+                )
+                scout_group_dummy_df = pd.get_dummies(scout_group_df, 'scout_group')  
+                snippet_df_full = (
+                    pd.merge(snippet_df_full,
+                             scout_group_dummy_df, 
+                             on=self.grouping,
+                             how='left').fillna(0)
+                )
+                other_variables = other_variables + [var  for var in list(scout_group_dummy_df)
+                                           if var != self.grouping]
         snippet_df_full["outcome"] = snippet_df_full.apply(
             lambda row: get_outcome(
                 row[self.dependent_variable],
@@ -327,7 +390,8 @@ class MixedFeatureData:
                 self.negative_outcomes,
             ),
             axis=1,
-        )    
+        )
+
         return snippet_df_full[
             self.continous_question_list + other_variables + ["outcome"]
         ]  # .fillna('No Answer')
@@ -345,12 +409,15 @@ class MixedFeatureData:
         full_features = self.full_feature_df
         encoder_dict = dict()
         for question in self.question_list:
-            # print(question, len(full_features[~pd.notnull(full_features[question])]))
-            # print(full_features[pd.notnull(full_features[question])][question].unique())
-            label_encoder = preprocessing.LabelEncoder()
-            encoder_dict[question] = label_encoder.fit(
-                full_features[question].astype(str)
-            )
+            #print(question, len(full_features[~pd.notnull(full_features[question])]))
+            converted_choices = [
+                convert_numerical_response(convert_na_response(qc)) for qc in
+                self.question_choice_dict[question]
+            ]
+
+            #print(converted_choices)
+            label_encoder = continuous_label_encoder(converted_choices)
+            encoder_dict[question] = label_encoder
         return encoder_dict
 
     def encoded_features(self):
@@ -358,9 +425,14 @@ class MixedFeatureData:
         feature_copy = self.full_feature_df.copy()
         for question in self.continous_question_list:
             col_name = question
+            #unique_choices = feature_copy[col_name].unique()
+            #print("In Data", unique_choices)
+            #print("encoded", [encoders[question].transform([resp])[0] for resp in 
+            #       unique_choices])
             feature_copy[col_name] = encoders[question].transform(
-                feature_copy[question].astype(str)
+                feature_copy[question]#.astype(str)
             )
+            #print("done")
         return feature_copy
 
     def independent_variable_stats(self):
