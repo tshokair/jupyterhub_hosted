@@ -14,6 +14,7 @@ from sklearn import linear_model
 from sklearn.decomposition import PCA
 from sklearn.metrics import mean_squared_error
 from sklearn.pipeline import Pipeline
+import statsmodels.formula.api as sm
 from tabulate import tabulate
 
 
@@ -40,15 +41,15 @@ class ClassificationModel():
         self.question_stats = feature_object.independent_variable_stats()
         self.trained_model = self.trained_pipeline()
         self.y_pred = self.prediction()
-    
+
     def balance_training(self):
-        
+
         pos_samples = len(self.training_features()\
          [self.training_features()['outcome'] == 1])
-        
+
         neg_samples = len(self.training_features()\
          [self.training_features()['outcome'] == 0])
-        
+
         sample_size = min(pos_samples, neg_samples)
         balanced =\
             pd.concat([self.training_features()
@@ -59,7 +60,7 @@ class ClassificationModel():
                         .sample(n=sample_size)
                       ])
         return balanced
-        
+
 
     def trained_pipeline(self):
         pca = PCA()
@@ -379,13 +380,13 @@ class MixedClassificationModel():
         self.y_pred = self.prediction()
 
     def balance_training(self):
-        
+
         pos_samples = len(self.training_features\
          [self.training_features['outcome'] == 1])
-        
+
         neg_samples = len(self.training_features\
          [self.training_features['outcome'] == 0])
-        
+
         sample_size = min(pos_samples, neg_samples)
         balanced =\
             pd.concat([self.training_features
@@ -396,7 +397,7 @@ class MixedClassificationModel():
                         .sample(n=sample_size)
                       ])
         return balanced
-        
+
 
     def trained_pipeline(self):
         pca = PCA()
@@ -441,6 +442,7 @@ class MixedClassificationModel():
                    rotation = 45)
         plt.legend(loc = 0)
         return ax
+
     def simulate_continuous_outcomes(self, independent_variable):
         response_range =\
             np.sort(self.features[independent_variable].unique())
