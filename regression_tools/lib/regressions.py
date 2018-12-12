@@ -8,6 +8,7 @@ Created on Tue Aug 14 12:21:18 2018
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import random
 from scipy.optimize import curve_fit
 from scipy import stats
 from sklearn import linear_model
@@ -401,9 +402,17 @@ class MixedClassificationModel():
 
     def trained_pipeline(self):
         pca = PCA()
-        log_reg = linear_model.LogisticRegressionCV(class_weight='balanced', cv=5)
+        log_reg = linear_model.LogisticRegressionCV(
+            cv=5,
+            max_iter=1000,
+            Cs=[1.0,0.1,.001],
+            random_state=1234,
+            refit=True
+        )
         pipe = Pipeline(steps=[('classifier', log_reg)])
         pipe.fit(self.X_train, self.y_train)
+        print(pipe.steps[0][1].n_iter_)
+        print(pipe.steps[0][1].C_)
         return pipe
 
     def prediction(self):

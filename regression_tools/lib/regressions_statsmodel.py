@@ -44,7 +44,7 @@ class RegressionModel():
 
     def trained_pipeline(self):
         ols = sm.GLS(self.y_train, self.X_train)
-        model = ols.fit()
+        model = ols.fit(maxiter=1000)
         return model
 
     def prediction(self):
@@ -195,8 +195,31 @@ class MixedClassificationModel():
 
 
     def trained_pipeline(self):
+        np.random.seed(44)
         log_reg = sm.Logit(self.y_train, self.X_train)
-        model = log_reg.fit()
+        param_array = np.zeros(len(self.independent_variables)+1)
+        iterations = 5
+        for i in range(0,iterations):
+            model = log_reg.fit(
+                maxiter=5000,
+                avextol=.0001,
+                epsilon=.1,
+                full_output=1,
+                disp=0
+            )
+            params = list(model.params)
+            param_array = [
+                a + b for a,b in zip(param_array,params)
+            ]
+        start = [p/iterations for p in param_array]
+        model = log_reg.fit(
+            start_params=start,
+            maxiter=5000,
+            avextol=.0001,
+            epsilon=.1,
+            full_output=1,
+            disp=1
+        )
         return model
 
     def prediction(self):
@@ -375,6 +398,9 @@ class MixedClassificationModel():
 
         print(self.trained_model.summary())
 
+    def result_df(self):
+        return self.trained_model.pvalues
+
     def odds_ratio(self):
         odds_increase = [
             int(round(100*(np.exp(param) - 1),0))
@@ -395,5 +421,6 @@ class MixedClassificationModel():
             round(self.question_stats[row['independent_variable']]['std'],2),
             axis=1
         )
-        print(odds_ratio_table.to_string(index=False))
+        #odds_ratio_table.to_string(index=False))
+        return odds_ratio_table
         #print(np.exp(self.trained_model.params))
