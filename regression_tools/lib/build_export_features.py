@@ -262,7 +262,7 @@ def split_multiple_and_pivot(preprocessed):
     return processed_df
 
 
-class MixedFeatureData:
+class ExportFeatureData:
     def __init__(
         self,
         raw,

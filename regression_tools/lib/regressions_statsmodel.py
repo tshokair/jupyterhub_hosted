@@ -258,6 +258,8 @@ class MixedClassificationModel():
         plt.legend(loc = 0)
         return ax
 
+
+
     def simulate_continuous_outcomes(self, independent_variable):
         outcome_labels = ['negative', 'positive']
         outcome_choices = [0, 1]
@@ -291,6 +293,19 @@ class MixedClassificationModel():
         question_choices = (
             indep_vals[independent_variable+'_val'].tolist()
         )
+        return {
+            "response_range":response_range,
+            "predictions": predictions,
+            "question_choices": question_choices
+        }
+
+    def plot_simulations(self, independent_variable):
+        outcome_labels = ['negative', 'positive']
+        outcome_choices = [0, 1]
+        sim_dict = self.simulate_continuous_outcomes(independent_variable)
+        response_range = sim_dict['response_range']
+        predictions = sim_dict['predictions']
+        question_choices = sim_dict['question_choices']
         fig, ax = plt.subplots()
         ax.scatter(response_range, predictions)
         x0_start = np.mean(response_range)

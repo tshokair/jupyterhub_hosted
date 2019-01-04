@@ -10,7 +10,11 @@ def rename_question(part_num, question_num):
 
 
 def convert_na_response(response):
-    if response.startswith('N/A'):
+    try:
+        is_na = response.startswith('N/A')
+    except (ValueError, TypeError, AttributeError) as e:
+        is_na = False
+    if is_na:
         return -1
     return response
 
@@ -136,6 +140,8 @@ def get_question_choices(structure):
         return structure["choices"][::-1]
     except KeyError:
         return [int(i) for i in np.linspace(0, 100, 101)]
+
+
 
 
 class MixedFeatureData:
@@ -397,7 +403,7 @@ class MixedFeatureData:
         )
 
         return snippet_df_full[
-            self.continous_question_list + other_variables + ["outcome"]
+            self.continous_question_list + other_variables + ["outcome", self.grouping]
         ].dropna()
 
     def question_choices(self):
