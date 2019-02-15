@@ -152,7 +152,7 @@ class ClassificationModel():
         mu = self.question_stats[independent_variable]['mu']
         sig = self.question_stats[independent_variable]['std']
         predictions = []
-        print(response_range)
+        
         for j, val in enumerate(response_range):
             feature_array = np.zeros(len(self.independent_variables))
             feature_array[idx] = (val - mu)/sig
@@ -207,7 +207,7 @@ class ClassificationModel():
         #ax.set_xlabel('Varied '+indep_var)
         x0 = round(self.trained_model.intercept_[0],2)
         coef = round(self.trained_model.coef_[0][independent_variable_idx],2)
-        print(round(coef,2))
+        
         title = (independent_variable + "p(Positive|x) ="+
             "1/(1+exp(-"+str(coef)+ "(x +"+ str(x0)+")))"
         )
